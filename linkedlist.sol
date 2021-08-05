@@ -1,4 +1,4 @@
-pragma solidity ^0.6.0;
+pragma solidity ^0.8.0;
 // SPDX-License-Identifier: mosaaaaaaaaaaaaaaaaaaa
 
 /**
@@ -29,7 +29,7 @@ contract LinkedList {
     /**
      * @dev Creates an empty list.
      */
-    constructor() {
+    constructor() public{
         head = 0;
         idCounter = 1;
     }
