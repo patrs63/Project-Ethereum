@@ -7,7 +7,6 @@ pragma solidity ^0.8.0;
  * @author Alberto Cuesta Cañada
  */
  
- import "./Loot.sol";
  
 contract BetsLog {
 
@@ -23,7 +22,7 @@ contract BetsLog {
         uint256 next;
         uint256 data;
         address addr;
-        bool bet;
+        uint bet;
     }
 
     uint256 public head;
@@ -51,33 +50,35 @@ contract BetsLog {
         return (object.id, object.next, object.data, object.addr);
     }
     
-    function redeemBets(bool actual) public returns (Loot){
+    function redeemBets(uint actual) public view returns (uint256[] memory, address[] memory){
         uint256 sum = 0;
         Object memory curr = objects[head];
         uint256 number_it = idCounter;
         uint256 sum_guess_right = 0;
+        uint num_won = 0;
         while (number_it > 0) {
             if(curr.bet == actual){
                 sum_guess_right += curr.data;
+                num_won++;
             }
             number_it -= 1;
             sum += curr.data;
             curr = objects[curr.next];
         }
-        
+        //require(0==1,"OH NO");
+        address[] memory addresses = new address[](num_won);
+        uint256[] memory values = new uint256[](num_won);
         curr = objects[head];
-        number_it = idCounter;
-        Loot loot = new Loot();
-        while (number_it > 0) {
-            //    function addHead(uint256 _data, address _addr, bool _bet)
+        for(uint i=0; i < num_won ;){
             if(curr.bet == actual){
-                uint256 portion = (curr.data /sum_guess_right)*sum;
-                loot.addHead(portion, curr.addr);
-                curr = objects[curr.next]; 
+                addresses[i] = curr.addr;
+                values[i] = (curr.data*sum)/sum_guess_right;
+                i++;
             }
-            
+            curr = objects[curr.next];
         }
-        return loot;
+        
+        return (values, addresses);
     }
     
 
@@ -151,7 +152,7 @@ contract BetsLog {
     /**
      * @dev Insert a new Object as the new Head with `_data` in the data field.
      */
-    function addHead(uint256 _data, address _addr, bool _bet)
+    function addHead(uint256 _data, address _addr, uint _bet)
         public
     {
         uint256 objectId = _createObject(_data, _addr, _bet);
@@ -162,7 +163,7 @@ contract BetsLog {
     /**
      * @dev Insert a new Object as the new Tail with `_data` in the data field.
      */
-    function addTail(uint256 _data, address _addr, bool _bet) // NOTE THAT IT IS BETTER TO USED ADD TAIL FOR EFFICIENCY DURING DELETION
+    function addTail(uint256 _data, address _addr, uint _bet) // NOTE THAT IT IS BETTER TO USED ADD TAIL FOR EFFICIENCY DURING DELETION
         public
     {
         if (head == 0) {
@@ -206,7 +207,7 @@ contract BetsLog {
     /**
      * @dev Internal function to create an unlinked Object.
      */
-    function _createObject(uint256 _data, address _addr, bool _bet)
+    function _createObject(uint256 _data, address _addr, uint _bet)
         internal
         returns (uint256)
     {

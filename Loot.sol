@@ -49,6 +49,14 @@ contract Loot {
         return (object.id, object.next, object.data, object.addr);
     }
     
+    function getHeadID() public view returns(uint256) {
+        return head;
+    }
+    
+    function getCounterID() public view returns(uint256) {
+        return idCounter;
+    }
+    
 
     /**
      * @dev Return the id of the first Object matching `_data` in the data field.
