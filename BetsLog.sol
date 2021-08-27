@@ -56,7 +56,7 @@ contract BetsLog {
         uint256 number_it = idCounter;
         uint256 sum_guess_right = 0;
         uint num_won = 0;
-        while (number_it > 0) {
+        while (number_it > 1) {
             if(curr.bet == actual){
                 sum_guess_right += curr.data;
                 num_won++;
@@ -69,6 +69,7 @@ contract BetsLog {
         address[] memory addresses = new address[](num_won);
         uint256[] memory values = new uint256[](num_won);
         curr = objects[head];
+        
         for(uint i=0; i < num_won ;){
             if(curr.bet == actual){
                 addresses[i] = curr.addr;
@@ -77,7 +78,6 @@ contract BetsLog {
             }
             curr = objects[curr.next];
         }
-        
         return (values, addresses);
     }
     
@@ -88,7 +88,7 @@ contract BetsLog {
         uint256 sum = 0;
         Object memory curr = objects[head];
         uint256 number_it = idCounter;
-        while (number_it > 0) {
+        while (number_it > 1) {
             number_it -= 1;
             sum += curr.data;
             curr = objects[curr.next];
@@ -108,7 +108,7 @@ contract BetsLog {
         uint256 sum = 0;
         Object memory curr = objects[head];
         uint256 number_it = idCounter;
-        while (number_it > 0) {
+        while (number_it > 1) {
             number_it -= 1;
             if(curr.addr == addr) {
                 sum += curr.data;
