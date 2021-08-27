@@ -31,16 +31,15 @@ contract CryptoCFD {
         owner = payable(msg.sender);
 
         //BAT
-        coinInfo coin3 = new coinInfo("BAT", 0x8e67A0CFfbbF6A346ce87DFe06daE2dc782b3219);
-        coinsList["BAT"] = coin3;
-        existingCoins["BAT"] = true;
+        // coinInfo coin3 = new coinInfo("BAT", 0x8e67A0CFfbbF6A346ce87DFe06daE2dc782b3219);
+        // coinsList["BAT"] = coin3;
+        // existingCoins["BAT"] = true;
         
         /*
         //BTC
         coinInfo coin = new coinInfo("BTC", 0x6135b13325bfC4B00278B4abC5e20bbce2D6580e,address(timeLibrary));
         coinsList["BTC"] = coin;
         existingCoins["BTC"] = true;
-
         //XRP
         coinInfo coin2 = new coinInfo("XRP", 0x3eA2b7e3ed9EA9120c3d6699240d1ff2184AC8b3,address(timeLibrary));
         coinsList["XRP"] = coin2;
@@ -49,33 +48,44 @@ contract CryptoCFD {
         
     }
     
+    
     modifier onlyOwner {
         require(msg.sender == owner, "Sorry you dont have permission to execute this function");
         _;
     }
  
-    
     function addCoin(string memory coinName, address coinAddress) public onlyOwner{
         coinsList[coinName] = new coinInfo(coinName,coinAddress);
         existingCoins[coinName] = true;
+    }
+    
+    function rechargeLink(address subContractAddress) private{
+        if(LINK.balanceOf(subContractAddress) == 0){
+            require(LINK.balanceOf(address(this)) > 4, "No sufficient LINK tokens."); // we assume the CFD contract has enough LINKs
+            LINK.transfer(subContractAddress, 4); // send 4 tokens to the coinInfo Subcontract
+        }
     }
     
     function executeBet(string memory coin,uint decision) public payable{//maybe later change decision to string = long or short and internal change to bool
         //msg.sender // msg.value
         require(existingCoins[coin] != false, "The coin you are trying to bet on doesnt exist");
         require(msg.value > 0 ether, "you need to add a positive ether value to make a bet");
+        
+        rechargeLink(address(coinsList[coin]));
+        
         uint256 betID = coinsList[coin].placeBet(msg.sender, msg.value, decision);
         emit success("Your bet was placed successfully, please reedem your winnings after 24h using for the follwing betID",betID);
-        
     }
     
     function redeemBet(string memory coin,uint256 betID) public{
         require(existingCoins[coin] != false, "The coin you are trying to bet on doesnt exist");
+        
+        rechargeLink(address(coinsList[coin]));
+        
         (uint256[] memory values, address[] memory addresses) = coinsList[coin].redeemBet(betID);
         for (uint i=0; i< values.length ; i++){
             payable(addresses[i]).transfer(values[i]);
         }
-
     }
     
     
