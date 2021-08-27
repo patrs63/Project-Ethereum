@@ -17,7 +17,9 @@ contract coinInfo{
         uint256 betStartTime;
         //bool initialized;
         BetsLog betLog;
+        bool is_redeemed;
     }
+    
     LinkTokenInterface private LINK;
     address payable owner;
     string public name;
@@ -25,6 +27,7 @@ contract coinInfo{
     AggregatorV3Interface internal priceFeedEther; 
     mapping(uint256 => specficBet) public betList; //This is a mapping for betID which can be identified for example using the specific date since we have 1 bet per day.
     // mapping(uint256 => betExists) public
+    
     constructor(string memory Iname, address addr) {
         owner = payable(msg.sender);
         LINK = LinkTokenInterface(0xa36085F69e2889c224210F603D836748e7dC0088);
@@ -178,8 +181,8 @@ contract coinInfo{
         return parseTimestamp(timestamp).day;
     }
 
-    
-    
+    // --------------------------------------------------------------------------------- //
+
     function placeBet(address sender, uint256 betValue, uint bet) public returns (uint256){
         //msg.value
         uint256 month = getMonth(block.timestamp);
@@ -212,18 +215,17 @@ contract coinInfo{
                 
             ) = priceFeedEther.latestRoundData();
 
-            betList[betID] = specficBet({betStartPrice : (uint256(price) * 10**18)/uint256(price2), betStartTime : block.timestamp, betLog : new BetsLog()});
+            betList[betID] = specficBet({betStartPrice : (uint256(price) * 10**18)/uint256(price2), betStartTime : block.timestamp, betLog : new BetsLog() , is_redeemed : false});
             currBet.betLog.addHead(betValue, sender, bet);
         }
         
         return betID;
     }
     
-    
-    function redeemBet(uint256 betID) public view returns (uint256[] memory, address[] memory){
+    function redeemBet(uint256 betID) public returns (uint256[] memory, address[] memory){
         require(betList[betID].betStartTime > 0, "No such bet exists");
-        //require(block.timestamp > betList[betID].betStartTime +3 minutes, "cannot claim yet");
-        //calc the curr vlue
+        require(betList[betID].is_redeemed == false, "Bet already redeemed");
+        
         uint256 curr_value;
         (
             , 
@@ -246,7 +248,8 @@ contract coinInfo{
         if (curr_value > betList[betID].betStartPrice) {
             actual = 1; //actual = true means rising price
         }
-    
+        
+        betList[betID].is_redeemed = true;
         return betList[betID].betLog.redeemBets(actual);
     }
     
