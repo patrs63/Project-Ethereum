@@ -89,7 +89,6 @@ contract CryptoCFD {
     }
     
     
-
     // Accept any incoming amount - I guess if anyone want to donate :) 
     receive() external payable {}
 

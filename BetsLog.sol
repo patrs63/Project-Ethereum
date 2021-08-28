@@ -27,6 +27,7 @@ contract BetsLog {
 
     uint256 public head;
     uint256 public idCounter;
+    uint256 public total_bets;
     mapping (uint256 => Object) public objects;
 
     /**
@@ -35,6 +36,7 @@ contract BetsLog {
     constructor() {
         head = 0;
         idCounter = 1;
+        total_bets = 0;
     }
 
     /**
@@ -50,34 +52,22 @@ contract BetsLog {
         return (object.id, object.next, object.data, object.addr);
     }
     
-    function redeemBets(uint actual) public view returns (uint256[] memory, address[] memory){
-        uint256 sum = 0;
-        Object memory curr = objects[head];
-        uint256 number_it = idCounter;
-        uint256 sum_guess_right = 0;
-        uint num_won = 0;
-        while (number_it > 1) {
-            if(curr.bet == actual){
-                sum_guess_right += curr.data;
-                num_won++;
-            }
-            number_it -= 1;
-            sum += curr.data;
-            curr = objects[curr.next];
-        }
+    /**
+     * returm two arrays containing the addresses and the bets devided by the sum_guess_right
+     **/
+    function redeemBets(uint256 sum_guess_right) public view returns (uint256[] memory, address[] memory){
         //require(0==1,"OH NO");
-        address[] memory addresses = new address[](num_won);
-        uint256[] memory values = new uint256[](num_won);
-        curr = objects[head];
+        address[] memory addresses = new address[](idCounter-1);
+        uint256[] memory values = new uint256[](idCounter-1);
+        Object memory curr = objects[head];
         
-        for(uint i=0; i < num_won ;){
-            if(curr.bet == actual){
-                addresses[i] = curr.addr;
-                values[i] = (curr.data*sum)/sum_guess_right;
-                i++;
-            }
+        for(uint i=idCounter; i > 1 ; i--){
+
+            addresses[i] = curr.addr;
+            values[i] = (curr.data*total_bets)/sum_guess_right;
             curr = objects[curr.next];
         }
+
         return (values, addresses);
     }
     
@@ -158,6 +148,7 @@ contract BetsLog {
         uint256 objectId = _createObject(_data, _addr, _bet);
         _link(objectId, head);
         _setHead(objectId);
+        total_bets += _data;
     }
 
     /**
@@ -231,6 +222,16 @@ contract BetsLog {
     {
         objects[_prevId].next = _nextId;
         emit ObjectsLinked(_prevId, _nextId);
+    }
+    
+    function destroyAll() public{
+        Object memory curr = objects[head];
+        uint256 number_it = idCounter;
+        while (number_it > 1) {
+            number_it -= 1;
+            curr = objects[curr.next];
+            remove(curr.id);
+        }
     }
     
 }

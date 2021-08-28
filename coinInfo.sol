@@ -15,8 +15,11 @@ contract coinInfo{
     struct specficBet{
         uint256 betStartPrice;
         uint256 betStartTime;
+        uint256 num_betters;
         //bool initialized;
-        BetsLog betLog;
+        BetsLog rise_betLog;
+        BetsLog fall_betLog;
+        uint256 total_bets;
         bool is_redeemed;
     }
     
@@ -191,11 +194,20 @@ contract coinInfo{
 
         specficBet storage currBet = betList[betID];
         
+        currBet.total_bets += betValue;
+        
         if (currBet.betStartTime != 0){ //there exists a bet in this time 
             
             require(block.timestamp < currBet.betStartTime + 2 minutes, "1 minute has passed since the bet started, try again tomorrow !");
+            require(currBet.num_betters < 50 , "max number of betters reached, try again tomorrow");
+            
             // concatenate to the end of the bets on the current bet.
-            currBet.betLog.addHead(betValue, sender, bet);
+            if(bet == 0){
+               currBet.rise_betLog.addHead(betValue, sender, bet); 
+            }else{
+                currBet.fall_betLog.addHead(betValue, sender, bet);
+            }
+            
             
         }else {// need to create a new bet mapping
             
@@ -215,8 +227,12 @@ contract coinInfo{
                 
             ) = priceFeedEther.latestRoundData();
 
-            betList[betID] = specficBet({betStartPrice : (uint256(price) * 10**18)/uint256(price2), betStartTime : block.timestamp, betLog : new BetsLog() , is_redeemed : false});
-            currBet.betLog.addHead(betValue, sender, bet);
+            betList[betID] = specficBet({betStartPrice : (uint256(price) * 10**18)/uint256(price2), betStartTime : block.timestamp, num_betters : 0, rise_betLog : new BetsLog(), fall_betLog : new BetsLog(), total_bets :0, is_redeemed : false});
+            if(bet == 0){
+                betList[betID].rise_betLog.addHead(betValue, sender, bet);   
+            }else{
+                betList[betID].fall_betLog.addHead(betValue, sender, bet);   
+            }
         }
         
         return betID;
@@ -244,14 +260,18 @@ contract coinInfo{
         ) = priceFeedEther.latestRoundData();
 
         curr_value = (uint256(price) * 10**18)/uint256(price2);
-        uint actual = 0;
-        if (curr_value > betList[betID].betStartPrice) {
-            actual = 1; //actual = true means rising price
-        }
         
         betList[betID].is_redeemed = true;
-        return betList[betID].betLog.redeemBets(actual);
+        
+        specficBet memory sBet = betList[betID];
+        
+        if (curr_value > betList[betID].betStartPrice) {
+            return sBet.rise_betLog.redeemBets(sBet.total_bets);
+        }
+        
+        return sBet.fall_betLog.redeemBets(sBet.total_bets);
     }
+    
     
     modifier onlyOwner {
         require(msg.sender == owner);
