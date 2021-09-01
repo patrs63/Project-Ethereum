@@ -265,11 +265,17 @@ contract coinInfo{
         
         specficBet memory sBet = betList[betID];
         
-        if (curr_value > betList[betID].betStartPrice) {
-            return sBet.rise_betLog.redeemBets(sBet.total_bets);
-        }
+        uint256[] memory val;
+        address[] memory add;
         
-        return sBet.fall_betLog.redeemBets(sBet.total_bets);
+        if (curr_value > betList[betID].betStartPrice) {
+            (val,add) =  sBet.rise_betLog.redeemBets(sBet.total_bets);
+        }
+        else{
+            sBet.fall_betLog.redeemBets(sBet.total_bets);
+        }
+        delete sBet;
+        return (val,add);
     }
     
     

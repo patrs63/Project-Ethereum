@@ -1,239 +1,105 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+
+// Version of Solidity compiler this program was written for
+
 pragma solidity ^0.8.0;
-// SPDX-License-Identifier: mosaaaaaaaaaaaaaaaaaaa
 
-/**
- * @title LinkedList
- * @dev Data structure
- * @author Alberto Cuesta Cañada
- */
+import "./coinInfo.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 
 
-contract BetsLog {
 
-    event ObjectCreated(uint256 id, uint256 data, address addr);
-    event ObjectsLinked(uint256 prev, uint256 next);
-    event ObjectRemoved(uint256 id);
-    event NewHead(uint256 id);
-    event SumValue(uint256 hawhaw, string name);
-    event RemovedHead(uint256 headID, uint256 add, uint256 data);
+contract CryptoCFD {
+    LinkTokenInterface private LINK;
+    address payable owner;
+    event time(uint8 errorMessage,string name);
+    event time80(uint80 val,string name);
+    event timeu(uint val,string name);
+    event test(uint256 node_id, string name);
+    event test3(string name, int val);
+    event test2(uint256 node_id, address addr);
 
-    struct Object{
-        uint256 id;
-        uint256 next;
-        uint256 data;
-        address addr;
-        uint bet;
-    }
 
-    uint256 public head;
-    uint256 public idCounter;
-    uint256 public total_bets;
-    mapping (uint256 => Object) public objects;
+    event success(string message,uint256 value);
 
-    /**
-     * @dev Creates an empty list.
-     */
+    mapping(string => coinInfo) coinsList; //mapping form coin index (for example bitcoin = 1 )
+    mapping(string => bool) existingCoins;
+
+
     constructor() {
-        head = 0;
-        idCounter = 1;
-        total_bets = 0;
+        LINK = LinkTokenInterface(0xa36085F69e2889c224210F603D836748e7dC0088);
+        owner = payable(msg.sender);
+
+        //BAT
+        // coinInfo coin3 = new coinInfo("BAT", 0x8e67A0CFfbbF6A346ce87DFe06daE2dc782b3219);
+        // coinsList["BAT"] = coin3;
+        // existingCoins["BAT"] = true;
+
+        /*
+        //BTC
+        coinInfo coin = new coinInfo("BTC", 0x6135b13325bfC4B00278B4abC5e20bbce2D6580e,address(timeLibrary));
+        coinsList["BTC"] = coin;
+        existingCoins["BTC"] = true;
+        //XRP
+        coinInfo coin2 = new coinInfo("XRP", 0x3eA2b7e3ed9EA9120c3d6699240d1ff2184AC8b3,address(timeLibrary));
+        coinsList["XRP"] = coin2;
+        existingCoins["XRP"] = true;
+        */
+
     }
 
-    /**
-     * @dev Retrieves the Object denoted by `_id`.
-     */
-    function get(uint256 _id)
-        public
-        virtual
-        view
-        returns (uint256, uint256, uint256, address)
-    {
-        Object memory object = objects[_id];
-        return (object.id, object.next, object.data, object.addr);
+
+    modifier onlyOwner {
+        require(msg.sender == owner, "Sorry you dont have permission to execute this function");
+        _;
     }
 
+    function addCoin(string memory coinName, address coinAddress) public onlyOwner{
+        coinsList[coinName] = new coinInfo(coinName,coinAddress);
+        existingCoins[coinName] = true;
+    }
 
-    function destroyAll() public{
-        Object memory curr = objects[head];
-        uint256 number_it = idCounter;
-        while (number_it > 1) {
-            number_it -= 1;
-            curr = objects[curr.next];
-            remove(curr.id);
+    function rechargeLink(address subContractAddress) private{
+        if(LINK.balanceOf(subContractAddress) == 0){
+            require(LINK.balanceOf(address(this)) > 4, "No sufficient LINK tokens."); // we assume the CFD contract has enough LINKs
+            LINK.transfer(subContractAddress, 4); // send 4 tokens to the coinInfo Subcontract
         }
     }
 
-    /**
-     * returm two arrays containing the addresses and the bets devided by the sum_guess_right
-     **/
-    function redeemBets(uint256 sum_guess_right) public returns (uint256[] memory, address[] memory){
-        //require(0==1,"OH NO");
-        address[] memory addresses = new address[](idCounter-1);
-        uint256[] memory values = new uint256[](idCounter-1);
-        Object memory curr = objects[head];
+    function executeBet(string memory coin,uint decision) public payable{//maybe later change decision to string = long or short and internal change to bool
+        //msg.sender // msg.value
+        require(existingCoins[coin] != false, "The coin you are trying to bet on doesnt exist");
+        require(msg.value > 0 ether, "you need to add a positive ether value to make a bet");
 
-        for(uint i=idCounter; i > 1 ; i--){
+        rechargeLink(address(coinsList[coin]));
 
-            addresses[i] = curr.addr;
-            values[i] = (curr.data*total_bets)/sum_guess_right;
-            curr = objects[curr.next];
+        uint256 betID = coinsList[coin].placeBet(msg.sender, msg.value, decision);
+        emit success("Your bet was placed successfully, please reedem your winnings after 24h using for the follwing betID",betID);
+    }
+
+    function redeemBet(string memory coin,uint256 betID) public{
+        require(existingCoins[coin] != false, "The coin you are trying to bet on doesnt exist");
+
+        rechargeLink(address(coinsList[coin]));
+
+        (uint256[] memory values, address[] memory addresses) = coinsList[coin].redeemBet(betID);
+        for (uint i=0; i< values.length ; i++){
+            payable(addresses[i]).transfer(values[i]);
         }
-        destroyAll();
-        return (values, addresses);
+        delete addresses;
+        delete values;
     }
 
 
-    function sumAll()
-    public
-    {
-        uint256 sum = 0;
-        Object memory curr = objects[head];
-        uint256 number_it = idCounter;
-        while (number_it > 1) {
-            number_it -= 1;
-            sum += curr.data;
-            curr = objects[curr.next];
+    // Accept any incoming amount - I guess if anyone want to donate :)
+    receive() external payable {}
 
-        }
-        emit SumValue(sum,"mosa");
+    // Contract destructor
+    function destroy() public onlyOwner {
+        /*add withdraw link back to my address aswell or I'll lose the link*/
+        LINK.transfer(owner, LINK.balanceOf(address(this)));
+        /*let this contract destroy inner ones to reedem inner link*/
+        selfdestruct(owner);
     }
-
-    /**
-     * @dev Return the id of the first Object matching `_data` in the data field.
-     */
-    function findDataForAddress(address addr)
-        public
-        view
-        returns (uint256)
-    {
-        uint256 sum = 0;
-        Object memory curr = objects[head];
-        uint256 number_it = idCounter;
-        while (number_it > 1) {
-            number_it -= 1;
-            if(curr.addr == addr) {
-                sum += curr.data;
-            }
-            curr = objects[curr.next];
-        }
-        return sum;
-    }
-
-     /**
-     * @dev Given an Object, denoted by `_id`, returns the id of the Object that points to it, or 0 if `_id` refers to the Head.
-     */
-    function findPrevId(uint256 _id)
-        public
-        view
-        returns (uint256)
-    {
-        if (_id == head) return 0;
-        Object memory prevObject = objects[head];
-        while (prevObject.next != _id) {
-            prevObject = objects[prevObject.next];
-        }
-        return prevObject.id;
-    }
-
-     /**
-     * @dev Returns the id for the Tail.
-     */
-    function findTailId()
-        public
-        view
-        returns (uint256)
-    {
-        Object memory oldTailObject = objects[head];
-        while (oldTailObject.next != 0) {
-            oldTailObject = objects[oldTailObject.next];
-        }
-        return oldTailObject.id;
-    }
-
-    /**
-     * @dev Insert a new Object as the new Head with `_data` in the data field.
-     */
-    function addHead(uint256 _data, address _addr, uint _bet)
-        public
-    {
-        uint256 objectId = _createObject(_data, _addr, _bet);
-        _link(objectId, head);
-        _setHead(objectId);
-        total_bets += _data;
-    }
-
-    /**
-     * @dev Insert a new Object as the new Tail with `_data` in the data field.
-     */
-    function addTail(uint256 _data, address _addr, uint _bet) // NOTE THAT IT IS BETTER TO USED ADD TAIL FOR EFFICIENCY DURING DELETION
-        public
-    {
-        if (head == 0) {
-            addHead(_data, _addr, _bet);
-        }
-        else {
-            uint256 oldTailId = findTailId();
-            uint256 newTailId = _createObject(_data, _addr, _bet);
-            _link(oldTailId, newTailId);
-        }
-    }
-
-    /**
-     * @dev Remove the Object denoted by `_id` from the List.
-     */
-    function remove(uint256 _id)
-        public
-    {
-        Object memory removeObject = objects[_id];
-        if (head == _id) {
-            _setHead(removeObject.next);
-        }
-        else {
-            uint256 prevObjectId = findPrevId(_id);
-            _link(prevObjectId, removeObject.next);
-        }
-        delete objects[removeObject.id];
-        emit ObjectRemoved(_id);
-    }
-
-    /**
-     * @dev Internal function to update the Head pointer.
-     */
-    function _setHead(uint256 _id)
-        internal
-    {
-        head = _id;
-        emit NewHead(_id);
-    }
-
-    /**
-     * @dev Internal function to create an unlinked Object.
-     */
-    function _createObject(uint256 _data, address _addr, uint _bet)
-        internal
-        returns (uint256)
-    {
-        uint256 newId = idCounter;
-        idCounter += 1;
-        Object memory object = Object(newId, 0, _data, _addr, _bet);
-        objects[object.id] = object;
-        emit ObjectCreated(
-            object.id,
-            object.data,
-            object.addr
-        );
-        return object.id;
-    }
-
-    /**
-     * @dev Internal function to link an Object to another.
-     */
-    function _link(uint256 _prevId, uint256 _nextId)
-        internal
-    {
-        objects[_prevId].next = _nextId;
-        emit ObjectsLinked(_prevId, _nextId);
-    }
-
 
 }
