@@ -9,9 +9,10 @@ import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 contract coinInfo{
-    
+
     event time(address val,string name);
-    
+    event res(int ss);
+
     struct specficBet{
         uint256 betStartPrice;
         uint256 betStartTime;
@@ -22,15 +23,15 @@ contract coinInfo{
         uint256 total_bets;
         bool is_redeemed;
     }
-    
+
     LinkTokenInterface private LINK;
     address payable owner;
     string public name;
-    AggregatorV3Interface internal OracleContract; 
-    AggregatorV3Interface internal priceFeedEther; 
+    AggregatorV3Interface internal OracleContract;
+    AggregatorV3Interface internal priceFeedEther;
     mapping(uint256 => specficBet) public betList; //This is a mapping for betID which can be identified for example using the specific date since we have 1 bet per day.
     // mapping(uint256 => betExists) public
-    
+
     constructor(string memory Iname, address addr) {
         owner = payable(msg.sender);
         LINK = LinkTokenInterface(0xa36085F69e2889c224210F603D836748e7dC0088);
@@ -38,7 +39,7 @@ contract coinInfo{
         priceFeedEther = AggregatorV3Interface(0x9326BFA02ADD2366b30bacB125260Af641031331);
         name = Iname;
     }
-    
+
     struct _DateTime {
                 uint16 year;
                 uint8 month;
@@ -48,7 +49,7 @@ contract coinInfo{
                 uint8 second;
                 uint8 weekday;
     }
-    
+
     uint constant DAY_IN_SECONDS = 86400;
     uint constant YEAR_IN_SECONDS = 31536000;
     uint constant LEAP_YEAR_IN_SECONDS = 31622400;
@@ -90,7 +91,7 @@ contract coinInfo{
                 return 28;
         }
     }
-    
+
     function getYear(uint timestamp) public pure returns (uint16) {
         uint secondsAccountedFor = 0;
         uint16 year;
@@ -114,7 +115,7 @@ contract coinInfo{
         }
         return year;
         }
-        
+
     function getHour(uint timestamp) public pure returns (uint8) {
         return uint8((timestamp / 60 / 60) % 24);
     }
@@ -175,7 +176,7 @@ contract coinInfo{
         // Day of week.
         dt.weekday = getWeekday(timestamp);
     }
-    
+
     function getMonth(uint timestamp) public pure returns (uint8) {
         return parseTimestamp(timestamp).month;
     }
@@ -193,98 +194,102 @@ contract coinInfo{
         uint256 betID = month * 100 + day;
 
         specficBet storage currBet = betList[betID];
-        
+
         currBet.total_bets += betValue;
-        
-        if (currBet.betStartTime != 0){ //there exists a bet in this time 
-            
+
+        if (currBet.betStartTime != 0){ //there exists a bet in this time
+
             require(block.timestamp < currBet.betStartTime + 2 minutes, "1 minute has passed since the bet started, try again tomorrow !");
             require(currBet.num_betters < 50 , "max number of betters reached, try again tomorrow");
-            
+
             // concatenate to the end of the bets on the current bet.
             if(bet == 0){
-               currBet.rise_betLog.addHead(betValue, sender, bet); 
+               currBet.rise_betLog.addHead(betValue, sender, bet);
+               /* emit res(1); */
             }else{
                 currBet.fall_betLog.addHead(betValue, sender, bet);
+                /* emit res(2); */
             }
-            
-            
+
+
         }else {// need to create a new bet mapping
-            
+
             (
-                , 
+                ,
                 int price,
                 ,
                 ,
-                
+
             ) = OracleContract.latestRoundData();
-    
+
             (
-                , 
+                ,
                 int price2,
                 ,
                 ,
-                
+
             ) = priceFeedEther.latestRoundData();
 
             betList[betID] = specficBet({betStartPrice : (uint256(price) * 10**18)/uint256(price2), betStartTime : block.timestamp, num_betters : 0, rise_betLog : new BetsLog(), fall_betLog : new BetsLog(), total_bets :0, is_redeemed : false});
             if(bet == 0){
-                betList[betID].rise_betLog.addHead(betValue, sender, bet);   
+                betList[betID].rise_betLog.addHead(betValue, sender, bet);
+                /* emit res(3); */
             }else{
-                betList[betID].fall_betLog.addHead(betValue, sender, bet);   
+                betList[betID].fall_betLog.addHead(betValue, sender, bet);
+                /* emit res(4); */
             }
         }
-        
         return betID;
     }
-    
+
     function redeemBet(uint256 betID) public returns (uint256[] memory, address[] memory){
         require(betList[betID].betStartTime > 0, "No such bet exists");
         require(betList[betID].is_redeemed == false, "Bet already redeemed");
-        
+
         uint256 curr_value;
         (
-            , 
+            ,
             int price,
             ,
             ,
-            
+
         ) = OracleContract.latestRoundData();
 
         (
-            , 
+            ,
             int price2,
             ,
             ,
-            
+
         ) = priceFeedEther.latestRoundData();
 
         curr_value = (uint256(price) * 10**18)/uint256(price2);
-        
+
         betList[betID].is_redeemed = true;
-        
+
         specficBet memory sBet = betList[betID];
-        
+
         uint256[] memory val;
         address[] memory add;
-        
+
         if (curr_value > betList[betID].betStartPrice) {
             (val,add) =  sBet.rise_betLog.redeemBets(sBet.total_bets);
         }
         else{
-            sBet.fall_betLog.redeemBets(sBet.total_bets);
+            (val,add) = sBet.fall_betLog.redeemBets(sBet.total_bets);
         }
+
         delete sBet;
         return (val,add);
     }
-    
-    
+
+
     modifier onlyOwner {
         require(msg.sender == owner);
         _;
     }
 
-    // Accept any incoming amount - I guess if anyone want to donate :) 
+    // Accept any incoming amount - I guess if anyone want to donate :)
     receive() external payable {}
 
     // Contract destructor
@@ -293,6 +298,6 @@ contract coinInfo{
         LINK.transfer(owner, LINK.balanceOf(address(this)));
         selfdestruct(owner);
     }
-    
-    
+
+
 }//it is important to return the betID (identifier for the mapping above) to the user(using event) so he can reedem his bet after 24h

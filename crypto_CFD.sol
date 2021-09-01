@@ -12,12 +12,6 @@ import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 contract CryptoCFD {
     LinkTokenInterface private LINK;
     address payable owner;
-    event time(uint8 errorMessage,string name);
-    event time80(uint80 val,string name);
-    event timeu(uint val,string name);
-    event test(uint256 node_id, string name);
-    event test3(string name, int val);
-    event test2(uint256 node_id, address addr);
 
 
     event success(string message,uint256 value);
@@ -59,19 +53,19 @@ contract CryptoCFD {
         existingCoins[coinName] = true;
     }
 
-    function rechargeLink(address subContractAddress) private{
-        if(LINK.balanceOf(subContractAddress) == 0){
-            require(LINK.balanceOf(address(this)) > 4, "No sufficient LINK tokens."); // we assume the CFD contract has enough LINKs
-            LINK.transfer(subContractAddress, 4); // send 4 tokens to the coinInfo Subcontract
-        }
-    }
+    // function rechargeLink(address subContractAddress) private{
+    //     if(LINK.balanceOf(subContractAddress) == 0){
+    //         require(LINK.balanceOf(address(this)) > 4, "No sufficient LINK tokens."); // we assume the CFD contract has enough LINKs
+    //         LINK.transfer(subContractAddress, 4); // send 4 tokens to the coinInfo Subcontract
+    //     }
+    // }
 
     function executeBet(string memory coin,uint decision) public payable{//maybe later change decision to string = long or short and internal change to bool
         //msg.sender // msg.value
         require(existingCoins[coin] != false, "The coin you are trying to bet on doesnt exist");
         require(msg.value > 0 ether, "you need to add a positive ether value to make a bet");
 
-        rechargeLink(address(coinsList[coin]));
+        // rechargeLink(address(coinsList[coin]));//could be optimized
 
         uint256 betID = coinsList[coin].placeBet(msg.sender, msg.value, decision);
         emit success("Your bet was placed successfully, please reedem your winnings after 24h using for the follwing betID",betID);
@@ -80,14 +74,15 @@ contract CryptoCFD {
     function redeemBet(string memory coin,uint256 betID) public{
         require(existingCoins[coin] != false, "The coin you are trying to bet on doesnt exist");
 
-        rechargeLink(address(coinsList[coin]));
+        // rechargeLink(address(coinsList[coin])); // could be optimized
 
         (uint256[] memory values, address[] memory addresses) = coinsList[coin].redeemBet(betID);
+
         for (uint i=0; i< values.length ; i++){
             payable(addresses[i]).transfer(values[i]);
         }
-        delete addresses;
-        delete values;
+        // delete addresses;
+        // delete values;
     }
 
 
