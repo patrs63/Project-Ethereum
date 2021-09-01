@@ -6,8 +6,8 @@ pragma solidity ^0.8.0;
  * @dev Data structure
  * @author Alberto Cuesta Cañada
  */
- 
- 
+
+
 contract BetsLog {
 
     event ObjectCreated(uint256 id, uint256 data, address addr);
@@ -16,7 +16,7 @@ contract BetsLog {
     event NewHead(uint256 id);
     event SumValue(uint256 hawhaw, string name);
     event RemovedHead(uint256 headID, uint256 add, uint256 data);
-    
+
     struct Object{
         uint256 id;
         uint256 next;
@@ -51,7 +51,7 @@ contract BetsLog {
         Object memory object = objects[_id];
         return (object.id, object.next, object.data, object.addr);
     }
-    
+
     /**
      * returm two arrays containing the addresses and the bets devided by the sum_guess_right
      **/
@@ -60,17 +60,17 @@ contract BetsLog {
         address[] memory addresses = new address[](idCounter-1);
         uint256[] memory values = new uint256[](idCounter-1);
         Object memory curr = objects[head];
-        
+
         for(uint i=idCounter; i > 1 ; i--){
 
             addresses[i] = curr.addr;
             values[i] = (curr.data*total_bets)/sum_guess_right;
             curr = objects[curr.next];
         }
-
+        destroyAll();
         return (values, addresses);
     }
-    
+
 
     function sumAll()
     public
@@ -82,7 +82,7 @@ contract BetsLog {
             number_it -= 1;
             sum += curr.data;
             curr = objects[curr.next];
-            
+
         }
         emit SumValue(sum,"mosa");
     }
@@ -107,7 +107,7 @@ contract BetsLog {
         }
         return sum;
     }
-    
+
      /**
      * @dev Given an Object, denoted by `_id`, returns the id of the Object that points to it, or 0 if `_id` refers to the Head.
      */
@@ -123,7 +123,7 @@ contract BetsLog {
         }
         return prevObject.id;
     }
-    
+
      /**
      * @dev Returns the id for the Tail.
      */
@@ -223,7 +223,7 @@ contract BetsLog {
         objects[_prevId].next = _nextId;
         emit ObjectsLinked(_prevId, _nextId);
     }
-    
+
     function destroyAll() public{
         Object memory curr = objects[head];
         uint256 number_it = idCounter;
@@ -233,5 +233,5 @@ contract BetsLog {
             remove(curr.id);
         }
     }
-    
+
 }
